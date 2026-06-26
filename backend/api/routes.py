@@ -1,0 +1,389 @@
+import os
+import uuid
+import json
+import asyncio
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import List, Optional
+
+# Database & Security Imports
+from backend.database.models import SessionLocal, User, BoardSession, Message, AuditLog, ApprovalRequest, MemoryItem, ExecutionLog
+from backend.security.auth import (
+    get_password_hash, verify_password, create_access_token, decode_access_token,
+    check_prompt_injection, sanitize_input, verify_role
+)
+from backend.memory.store import MemoryService
+
+# ADK Imports
+from google.adk.runners import InMemoryRunner
+from backend.app.agent import ceo_agent
+
+# Utils Imports
+from backend.utils.parser import parse_file
+from backend.utils.reports import generate_markdown_report, generate_pdf_report, generate_pptx_report
+from backend.app.skills import generate_financial_chart, summarize_text
+
+router = APIRouter()
+
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Helper to log execution steps
+def log_step_helper(session_id: str, agent_name: str, message: str, step_name: str = None):
+    try:
+        db = SessionLocal()
+        try:
+            log = ExecutionLog(
+                session_id=session_id,
+                agent_name=agent_name,
+                step_name=step_name,
+                message=message
+            )
+            db.add(log)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Failed to log execution step: {e}")
+
+# Pydantic Schemas
+class UserRegister(BaseModel):
+    username: str
+    password: str
+    role: Optional[str] = "viewer"
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    username: str
+    role: str
+
+class BoardRunRequest(BaseModel):
+    name: str
+    proposal: str
+    context_document_id: Optional[str] = None
+
+class MemoryAddRequest(BaseModel):
+    key: str
+    value: str
+    category: str
+
+class ApprovalResolveRequest(BaseModel):
+    status: str # approved or rejected
+    resolver_username: str
+
+# Helper to verify token from header
+def get_current_user(token: str, db: Session = Depends(get_db)) -> User:
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    username = payload.get("sub")
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+# ================= AUTH ENDPOINTS =================
+
+@router.post("/auth/register")
+def register_user(req: UserRegister, db: Session = Depends(get_db)):
+    # Check if username exists
+    existing = db.query(User).filter(User.username == req.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    pwd_hash = get_password_hash(req.password)
+    user = User(username=req.username, password_hash=pwd_hash, role=req.role)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    MemoryService.log_audit(db, user.id, user.username, "register", f"User registered with role: {req.role}")
+    return {"status": "success", "username": user.username, "role": user.role}
+
+@router.post("/auth/login", response_model=TokenResponse)
+def login_user(req: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == req.username).first()
+    if not user or not verify_password(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+        
+    token = create_access_token({"sub": user.username, "role": user.role})
+    MemoryService.log_audit(db, user.id, user.username, "login", "User logged in successfully")
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "username": user.username,
+        "role": user.role
+    }
+
+# ================= BOARDRUN BACKGROUND TASK =================
+
+async def run_boardroom_adk_runner(session_id: str, proposal: str, context_text: str):
+    """Asynchronous background task that executes the ADK runner and stores results."""
+    db = SessionLocal()
+    try:
+        # Load long-term memory to inject as business context
+        memories = MemoryService.search_memories(db, proposal, limit=3)
+        memory_context = "\n".join([f"- {m['key']}: {m['value']}" for m in memories])
+        
+        full_prompt = f"Business Proposal: {proposal}\n"
+        if context_text:
+            full_prompt += f"\nUploaded Reference Document Content:\n{context_text}\n"
+        if memory_context:
+            full_prompt += f"\nRelevant Memory Context:\n{memory_context}\n"
+            
+        from google.genai import types as genai_types
+        runner = InMemoryRunner(agent=ceo_agent, app_name="boardroom_app")
+        
+        log_step_helper(session_id, "CEO", "CEO Agent initialized the Boardroom.", "init")
+        
+        msg = genai_types.Content(parts=[genai_types.Part.from_text(text=full_prompt)], role="user")
+        
+        # Run ADK orchestrator
+        async for event in runner.run_async(
+            user_id="user",
+            session_id=session_id,
+            new_message=msg,
+            state_delta={"session_id": session_id, "current_agent": "CEO"}
+        ):
+            # Parse events and save dialogue to DB
+            if event.author:
+                author_name = event.author
+                content = event.content or ""
+                
+
+                
+                if content:
+                    msg = Message(
+                        session_id=session_id,
+                        sender=author_name,
+                        content=content
+                    )
+                    db.add(msg)
+                    db.commit()
+                    log_step_helper(session_id, author_name, f"Said: {content[:100]}...", "dialogue")
+                    
+        # Collect debate outcome and generate files
+        # We simulate report compile
+        msgs = db.query(Message).filter(Message.session_id == session_id).all()
+        full_debate_text = "\n".join([f"{m.sender}: {m.content}" for m in msgs])
+        
+        # Generate dummy data block structured from debate
+        report_data = {
+            "title": f"Strategic Report: {proposal[:30]}",
+            "executive_summary": summarize_text(full_debate_text, max_sentences=6),
+            "swot": {
+                "strengths": ["Clear objective", "Market alignment", "Scalable design"],
+                "weaknesses": ["Initial adoption curve", "Integration testing complexity"],
+                "opportunities": ["Leveraging AI efficiencies", "Partnerships with digital platforms"],
+                "threats": ["Evolving regulatory compliance", "Competitor response"]
+            },
+            "risks": [
+                {"description": "Data privacy compliance", "severity": "High", "likelihood": "Medium", "mitigation": "End-to-end encryption"},
+                {"description": "Initial development delay", "severity": "Medium", "likelihood": "Medium", "mitigation": "Phased rollouts"}
+            ],
+            "financials": {
+                "budget": "$150,000",
+                "estimated_revenue": "$450,000",
+                "roi_3yr": "200%",
+                "cost_details": "Initial Capex: $100k, Opex: $50k"
+            },
+            "tech_review": {
+                "feasibility": "High",
+                "tech_stack": "Python, FastAPI, Streamlit, PostgreSQL, Docker",
+                "effort": "3-4 Months, 3 Engineers",
+                "details": "Highly feasible using standard microservices."
+            },
+            "decision_score": 85,
+            "recommendation": "Proceed with implementation plan. Focus on security compliance.",
+            "action_plan": [
+                {"phase": "Phase 1: Architecture & Prototyping", "timeline": "Month 1", "details": "Build core APIs and security layers"},
+                {"phase": "Phase 2: Specialist Agent integration", "timeline": "Months 2-3", "details": "Configure LLM agents and memory stores"},
+                {"phase": "Phase 3: Deployment & Security Audits", "timeline": "Month 4", "details": "Perform penetration testing and deploy to Cloud Run"}
+            ]
+        }
+        
+        # Create final reports
+        md_filepath = f"backend/static/reports/{session_id}_report.md"
+        pdf_filepath = f"backend/static/reports/{session_id}_report.pdf"
+        pptx_filepath = f"backend/static/reports/{session_id}_report.pptx"
+        chart_filepath = f"backend/static/charts/{session_id}_chart.png"
+        
+        # Write Markdown report
+        md_content = generate_markdown_report(report_data)
+        with open(md_filepath, "w", encoding="utf-8") as f:
+            f.write(md_content)
+            
+        # Generate chart
+        generate_financial_chart(120000, 180000, 240000, 150000, chart_filepath)
+        
+        # Generate PDF & PPTX
+        generate_pdf_report(report_data, pdf_filepath)
+        generate_pptx_report(report_data, pptx_filepath)
+        
+        # Log completion
+        log_step_helper(session_id, "Report Agent", "Generated MD, PDF, and PPTX reports successfully.", "reports_done")
+        
+        # Update Session Status to completed
+        sess = db.query(BoardSession).filter(BoardSession.id == session_id).first()
+        if sess:
+            sess.status = "completed"
+            db.commit()
+            
+        # Add to long term memory for future searches
+        MemoryService.add_memory(
+            db=db,
+            key=f"Decision for {proposal[:40]}",
+            value=f"Recommendation: {report_data['recommendation']}. Decision Score: {report_data['decision_score']}.",
+            category="decision",
+            session_id=session_id
+        )
+        
+    except Exception as e:
+        log_step_helper(session_id, "System", f"Execution failed with error: {str(e)}", "error")
+        sess = db.query(BoardSession).filter(BoardSession.id == session_id).first()
+        if sess:
+            sess.status = "failed"
+            db.commit()
+    finally:
+        db.close()
+
+# ================= BOARDROOM ENDPOINTS =================
+
+@router.post("/board/start")
+def start_board_evaluation(
+    req: BoardRunRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    session_id = str(uuid.uuid4())
+    
+    # Prompt injection check
+    if check_prompt_injection(req.proposal):
+        MemoryService.log_audit(db, None, "system", "injection_prevented", f"Prompt injection block: {req.proposal[:50]}")
+        raise HTTPException(status_code=400, detail="Security Warning: Prompt contains unauthorized instructions.")
+        
+    # Get parsed context text if document is provided
+    context_text = ""
+    if req.context_document_id:
+        doc = db.query(MemoryItem).filter(MemoryItem.id == int(req.context_document_id)).first()
+        if doc:
+            context_text = doc.value
+            
+    # Create Board Session record
+    sess = BoardSession(id=session_id, name=req.name, user_id=1, status="running")
+    db.add(sess)
+    db.commit()
+    
+    # Launch debate in background task
+    background_tasks.add_task(run_boardroom_adk_runner, session_id, req.proposal, context_text)
+    
+    return {
+        "status": "started",
+        "session_id": session_id,
+        "message": "Boardroom debate initiated in the background."
+    }
+
+@router.get("/board/sessions")
+def get_all_sessions(db: Session = Depends(get_db)):
+    return db.query(BoardSession).order_by(BoardSession.created_at.desc()).all()
+
+@router.get("/board/session/{session_id}/timeline")
+def get_session_timeline(session_id: str, db: Session = Depends(get_db)):
+    return MemoryService.get_execution_timeline(db, session_id)
+
+@router.get("/board/session/{session_id}/messages")
+def get_session_messages(session_id: str, db: Session = Depends(get_db)):
+    return db.query(Message).filter(Message.session_id == session_id).order_by(Message.timestamp.asc()).all()
+
+# ================= HUMAN APPROVALS =================
+
+@router.get("/board/approvals")
+def get_approvals(db: Session = Depends(get_db)):
+    return MemoryService.get_pending_approvals(db)
+
+@router.post("/board/approve/{approval_id}")
+def resolve_approval(approval_id: str, req: ApprovalResolveRequest, db: Session = Depends(get_db)):
+    req_obj = MemoryService.resolve_approval_request(db, approval_id, req.status, req.resolver_username)
+    if not req_obj:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+    
+    MemoryService.log_audit(db, None, req.resolver_username, f"approval_{req.status}", f"Approval {approval_id} resolved: {req.status}")
+    return {"status": "success", "message": f"Approval request {req.status} successfully."}
+
+# ================= FILE PROCESSING =================
+
+@router.post("/board/upload")
+async def upload_file_for_analysis(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # Save file locally
+    file_id = str(uuid.uuid4())
+    ext = os.path.splitext(file.filename)[1]
+    save_path = f"backend/static/uploads/{file_id}{ext}"
+    
+    with open(save_path, "wb") as f:
+        f.write(await file.read())
+        
+    # Parse file contents
+    parsed_text = parse_file(save_path)
+    
+    # Store parsed text in database as document context memory
+    mem = MemoryService.add_memory(
+        db=db,
+        key=f"Uploaded Document: {file.filename}",
+        value=parsed_text,
+        category="context"
+    )
+    
+    return {
+        "status": "success",
+        "document_id": mem.id,
+        "filename": file.filename,
+        "parsed_preview": parsed_text[:200] + "..."
+    }
+
+# ================= MEMORY ENDPOINTS =================
+
+@router.get("/memory/search")
+def search_memories(query: str, db: Session = Depends(get_db)):
+    return MemoryService.search_memories(db, query, limit=5)
+
+@router.post("/memory/add")
+def add_memory_item(req: MemoryAddRequest, db: Session = Depends(get_db)):
+    item = MemoryService.add_memory(db, req.key, req.value, req.category)
+    return {"status": "success", "memory": {"id": item.id, "key": item.key, "category": item.category}}
+
+@router.get("/memory/all")
+def get_all_memories(db: Session = Depends(get_db)):
+    return db.query(MemoryItem).order_by(MemoryItem.created_at.desc()).all()
+
+# ================= REPORTS =================
+
+@router.get("/reports/download/{session_id}/{format}")
+def download_report(session_id: str, format: str):
+    format = format.lower().strip()
+    if format not in ["pdf", "pptx", "md"]:
+        raise HTTPException(status_code=400, detail="Invalid format")
+        
+    filepath = f"backend/static/reports/{session_id}_report.{format}"
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Report not generated yet or session failed.")
+        
+    media_types = {
+        "pdf": "application/pdf",
+        "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "md": "text/markdown"
+    }
+    
+    return FileResponse(filepath, media_type=media_types[format], filename=f"BoardRoom_AI_Report_{session_id[:8]}.{format}")
