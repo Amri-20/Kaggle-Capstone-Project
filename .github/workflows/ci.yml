@@ -1,0 +1,35 @@
+name: BoardRoom AI CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          . .venv/bin/activate
+          uv pip install -r requirements.txt
+          uv pip install pypdf
+
+      - name: Run Unit Tests
+        run: |
+          . .venv/bin/activate
+          python -m unittest tests/test_auth.py tests/test_reports.py
