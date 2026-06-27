@@ -5,6 +5,7 @@ import asyncio
 import re
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
+from google.genai import types
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -153,14 +154,19 @@ async def run_boardroom_adk_runner(session_id: str, proposal: str, context_text:
             
         runner = InMemoryRunner(agent=ceo_agent, app_name="boardroom_app")
         
-        # Initialize ADK state variables
-        runner.state["session_id"] = session_id
-        runner.state["current_agent"] = "CEO"
+        # Initialize ADK session & state variables (ADK 0.5.0+ signature)
+        await runner.session_service.create_session(
+            app_name="boardroom_app",
+            user_id="user",
+            session_id=session_id,
+            state={"session_id": session_id, "current_agent": "CEO"}
+        )
         
         log_step_helper(session_id, "CEO", "CEO Agent initialized the Boardroom.", "init")
         
-        # Run ADK orchestrator
-        async for event in runner.run_async(user_id="user", session_id=session_id, input_text=full_prompt):
+        # Run ADK orchestrator (ADK 0.5.0+ signature)
+        new_msg = types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])
+        async for event in runner.run_async(user_id="user", session_id=session_id, new_message=new_msg):
             # Parse events and save dialogue to DB
             if event.author:
                 author_name = event.author
@@ -168,7 +174,9 @@ async def run_boardroom_adk_runner(session_id: str, proposal: str, context_text:
                 
                 # Check for agent switch
                 if "agent" in author_name.lower():
-                    runner.state["current_agent"] = author_name
+                    sess = await runner.session_service.get_session(app_name="boardroom_app", user_id="user", session_id=session_id)
+                    if sess:
+                        sess.state["current_agent"] = author_name
                 
                 if content:
                     msg = Message(
