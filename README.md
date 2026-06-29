@@ -68,50 +68,50 @@ User->>Dashboard: Check Session Logs & Download Report Packages
 
 ```
 boardroom-ai/
-??? .github/
-?   ??? workflows/
-?       ??? ci.yml             # Github Actions CI/CD Pipeline
-??? backend/
-?   ??? app/
-?   ?   ??? __init__.py
-?   ?   ??? agent.py          # CEO Orchestrator & Specialist Agent definitions
-?   ?   ??? config.py         # Static uploads and paths configuration
-?   ?   ??? skills.py         # Reusable Skills (Market Research, Financial, Visualization)
-?   ?   ??? tools.py          # Filesystem, DB, Browser MCP tools and Sensitive Action Approval
-?   ??? api/
-?   ?   ??? __init__.py
-?   ?   ??? routes.py         # FastAPI REST Router (Auth, Session run, Approvals, Memory)
-?   ??? database/
-?   ?   ??? __init__.py
-?   ?   ??? models.py         # SQLAlchemy Database models (Users, Message history, logs)
-?   ??? memory/
-?   ?   ??? __init__.py
-?   ?   ??? store.py          # SQLite Memory bank keyword retrieval & audit logger
-?   ??? security/
-?   ?   ??? __init__.py
-?   ?   ??? auth.py           # JWT Authentication, Password Hashing, RBAC, Prompt injection detector
-?   ??? utils/
-?   ?   ??? __init__.py
-?   ?   ??? parser.py         # Document Parser (PDF, DOCX, CSV, Excel, TXT)
-?   ?   ??? reports.py        # Report compiler (ReportLab PDF & python-pptx PPTX)
-?   ??? main.py               # FastAPI entrypoint
-??? frontend/
-?   ??? components/
-?   ?   ??? styles.py         # Custom CSS (Glassmorphism UI layout)
-?   ??? pages/
-?   ?   ??? auth.py           # Streamlit Sign In / Sign Up Forms
-?   ?   ??? dashboard.py      # Premium Streamlit dashboard pages
-?   ?   ??? landing.py        # Interactive landing page
-?   ??? app.py                # Streamlit entrypoint
-??? tests/
-?   ??? test_auth.py          # Security and Auth tests
-?   ??? test_reports.py       # Report compiler tests
-??? Dockerfile                # Backend Docker containerization
-??? Dockerfile.frontend       # Streamlit Docker containerization
-??? docker-compose.yml        # Multi-service docker orchestration
-??? requirements.txt          # Python dependencies
-??? .env.example              # Template environment config
-??? README.md                 # Primary documentation
++-- .github/
+|   +-- workflows/
+|       +-- ci.yml             # Github Actions CI/CD Pipeline
++-- backend/
+|   +-- app/
+|   |   +-- __init__.py
+|   |   +-- agent.py          # CEO Orchestrator & Specialist Agent definitions
+|   |   +-- config.py         # Static uploads and paths configuration
+|   |   +-- skills.py         # Reusable Skills (Market Research, Financial, Visualization)
+|   |   +-- tools.py          # Filesystem, DB, Browser MCP tools and Sensitive Action Approval
+|   +-- api/
+|   |   +-- __init__.py
+|   |   +-- routes.py         # FastAPI REST Router (Auth, Session run, Approvals, Memory)
+|   +-- database/
+|   |   +-- __init__.py
+|   |   +-- models.py         # SQLAlchemy Database models (Users, Message history, logs)
+|   +-- memory/
+|   |   +-- __init__.py
+|   |   +-- store.py          # SQLite Memory bank keyword retrieval & audit logger
+|   +-- security/
+|   |   +-- __init__.py
+|   |   +-- auth.py           # JWT Authentication, Password Hashing, RBAC, Prompt injection detector
+|   +-- utils/
+|   |   +-- __init__.py
+|   |   +-- parser.py         # Document Parser (PDF, DOCX, CSV, Excel, TXT)
+|   |   +-- reports.py        # Report compiler (ReportLab PDF & python-pptx PPTX)
+|   +-- main.py               # FastAPI entrypoint
++-- frontend/
+|   +-- components/
+|   |   +-- styles.py         # Custom CSS (Glassmorphism UI layout)
+|   +-- pages/
+|   |   +-- auth.py           # Streamlit Sign In / Sign Up Forms
+|   |   +-- dashboard.py      # Premium Streamlit dashboard pages
+|   |   +-- landing.py        # Interactive landing page
+|   +-- app.py                # Streamlit entrypoint
++-- tests/
+|   +-- test_auth.py          # Security and Auth tests
+|   +-- test_reports.py       # Report compiler tests
++-- Dockerfile                # Backend Docker containerization
++-- Dockerfile.frontend       # Streamlit Docker containerization
++-- docker-compose.yml        # Multi-service docker orchestration
++-- requirements.txt          # Python dependencies
++-- .env.example              # Template environment config
++-- README.md                 # Primary documentation
 ```
 
 ---

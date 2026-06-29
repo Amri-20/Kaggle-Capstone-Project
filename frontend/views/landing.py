@@ -27,7 +27,7 @@ def render_landing():
         Each agent represents a specific executive role, debating your business ideas from distinct perspectives to produce a vetted, balanced recommendation.
         """)
         
-        if st.button("?? Enter BoardRoom Dashboard", type="primary"):
+        if st.button("🚀 Enter BoardRoom Dashboard", type="primary"):
             st.session_state["page"] = "auth"
             st.rerun()
             
@@ -36,23 +36,23 @@ def render_landing():
         
         st.markdown("""
         <div class="board-card">
-            <span style="color:#6366F1; font-weight:bold;">?? CEO Agent (Orchestrator)</span><br/>
+            <span style="color:#6366F1; font-weight:bold;">👔 CEO Agent (Orchestrator)</span><br/>
             Decomposes tasks, delegates analysis, resolves specialist disagreements, and makes the final decision.
         </div>
         <div class="board-card">
-            <span style="color:#10B981; font-weight:bold;">?? CFO Agent (Finance)</span><br/>
+            <span style="color:#10B981; font-weight:bold;">📈 CFO Agent (Finance)</span><br/>
             Evaluates initial budget requirements, projects revenues, calculates ROI, and creates financial charts.
         </div>
         <div class="board-card">
-            <span style="color:#F59E0B; font-weight:bold;">?? CTO Agent (Technology)</span><br/>
+            <span style="color:#F59E0B; font-weight:bold;">💻 CTO Agent (Technology)</span><br/>
             Reviews architecture, proposes modern tech stacks, estimates effort, and scores technical feasibility.
         </div>
         <div class="board-card">
-            <span style="color:#EC4899; font-weight:bold;">?? CMO Agent (Marketing)</span><br/>
+            <span style="color:#EC4899; font-weight:bold;">📢 CMO Agent (Marketing)</span><br/>
             Conducts market research, maps out competitor landscapes, and designs SWOT analysis.
         </div>
         <div class="board-card">
-            <span style="color:#EF4444; font-weight:bold;">?? Legal & Compliance</span><br/>
+            <span style="color:#EF4444; font-weight:bold;">⚖️ Legal & Compliance</span><br/>
             Evaluates compliance risks, reviews data privacy laws (GDPR/CCPA), and proposes security guardrails.
         </div>
         """, unsafe_allow_html=True)
@@ -62,16 +62,16 @@ def render_landing():
     st.markdown("### Platform Key Features")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown("?? **Google ADK**")
+        st.markdown("🤖 **Google ADK**")
         st.write("Built on Google's new Agent Development Kit with custom multi-agent collaboration pipelines.")
     with c2:
-        st.markdown("?? **Enterprise Security**")
+        st.markdown("🛡️ **Enterprise Security**")
         st.write("SQLite-backed JWT authentication, strict Role-Based Access Control, and prompt injection protection.")
     with c3:
-        st.markdown("?? **Decision Memory**")
+        st.markdown("🧠 **Decision Memory**")
         st.write("Long-term business context memory retrieval and audit log logging for full system accountability.")
     with c4:
-        st.markdown("?? **Vetted Reports**")
+        st.markdown("📄 **Vetted Reports**")
         st.write("Automatically compiles executive-ready reports in Markdown, PowerPoint (PPTX), and ReportLab PDF.")
         
     st.markdown("""

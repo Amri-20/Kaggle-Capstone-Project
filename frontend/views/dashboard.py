@@ -26,7 +26,7 @@ def render_dashboard():
         st.markdown(f"<h2>Executive Decision Room</h2>", unsafe_allow_html=True)
         st.write(f"Logged in as: **{username}** | Role: **{role.upper()}**")
     with col_logout:
-        if st.button("?? Log Out", use_container_width=True):
+        if st.button("🚪 Log Out", use_container_width=True):
             st.session_state["token"] = None
             st.session_state["username"] = None
             st.session_state["role"] = None
@@ -38,15 +38,15 @@ def render_dashboard():
     
     # Sidebar navigation tabs
     menu_selection = st.sidebar.radio("Navigation", [
-        "?? Start Evaluation",
-        "?? Session History",
-        "?? Pending Approvals",
-        "?? Memory Bank",
-        "?? Platform Audit Logs"
+        "🚀 Start Evaluation",
+        "📜 Session History",
+        "⏳ Pending Approvals",
+        "🧠 Memory Bank",
+        "🔍 Platform Audit Logs"
     ])
     
     # ================= 1. START EVALUATION =================
-    if menu_selection == "?? Start Evaluation":
+    if menu_selection == "🚀 Start Evaluation":
         st.markdown("### Evaluate New Business Idea")
         st.write("Submit a proposal to initiate an executive debate among your AI board members.")
         
@@ -77,7 +77,7 @@ def render_dashboard():
             else:
                 doc_id = st.session_state.get("uploaded_doc_id")
         
-        if st.button("?? Initiate Board Debate", type="primary", use_container_width=True):
+        if st.button("⚡ Initiate Board Debate", type="primary", use_container_width=True):
             if not proj_name or not proposal_text:
                 st.error("Please provide both Project Name and Proposal Details.")
             else:
@@ -162,11 +162,11 @@ def render_dashboard():
                                 # Render downloads
                                 c1, c2, c3 = st.columns(3)
                                 with c1:
-                                    st.link_button("?? Download PDF", f"{API_URL}/reports/download/{active_sess_id}/pdf", use_container_width=True)
+                                    st.link_button("📄 Download PDF", f"{API_URL}/reports/download/{active_sess_id}/pdf", use_container_width=True)
                                 with c2:
-                                    st.link_button("?? Download PPTX", f"{API_URL}/reports/download/{active_sess_id}/pptx", use_container_width=True)
+                                    st.link_button("📊 Download PPTX", f"{API_URL}/reports/download/{active_sess_id}/pptx", use_container_width=True)
                                 with c3:
-                                    st.link_button("?? Download Markdown", f"{API_URL}/reports/download/{active_sess_id}/md", use_container_width=True)
+                                    st.link_button("📝 Download Markdown", f"{API_URL}/reports/download/{active_sess_id}/md", use_container_width=True)
                                     
                                 # Show chart
                                 st.markdown("#### Projections Visualizer")
@@ -174,7 +174,7 @@ def render_dashboard():
                                 st.session_state["active_session_id"] = None
                             elif s["status"] == "running":
                                 current_step = t_list[-1]['message'] if t_list else "Initializing board members..."
-                                st.info(f"?? **Board Meeting in Progress**: {current_step}")
+                                st.info(f"⏳ **Board Meeting in Progress**: {current_step}")
                                 st.spinner("Analyzing...")
                             elif s["status"] == "failed":
                                 st.error("Board session execution failed. Please verify credentials or logs.")
@@ -184,10 +184,10 @@ def render_dashboard():
                 st.error(f"Error reading timeline: {e}")
                 
             # Quick Refresh Button
-            st.button("?? Refresh Timeline & Dialogs")
+            st.button("🔄 Refresh Timeline & Dialogs")
 
     # ================= 2. SESSION HISTORY =================
-    elif menu_selection == "?? Session History":
+    elif menu_selection == "📜 Session History":
         st.markdown("### Past Board Evaluations")
         st.write("Browse all past executive reviews and download their completed strategy packages.")
         
@@ -202,7 +202,7 @@ def render_dashboard():
                     st.markdown(f"""
                     <div class="board-card">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h4>?? {s['name']}</h4>
+                            <h4>📂 {s['name']}</h4>
                             <span class="status-badge {status_cls}">{s['status'].upper()}</span>
                         </div>
                         <p style="font-size:0.85rem; color:#94A3B8; margin-top:2px;">Session ID: {s['id']} | Created: {s['created_at'][:19]}</p>
@@ -213,13 +213,13 @@ def render_dashboard():
                     if s['status'] == "completed":
                         c1, c2, c3, c4 = st.columns([1, 1, 1, 1.2])
                         with c1:
-                            st.link_button("PDF Report", f"{API_URL}/reports/download/{s['id']}/pdf", use_container_width=True)
+                            st.link_button("📄 PDF Report", f"{API_URL}/reports/download/{s['id']}/pdf", use_container_width=True)
                         with c2:
-                            st.link_button("PPTX Slides", f"{API_URL}/reports/download/{s['id']}/pptx", use_container_width=True)
+                            st.link_button("📊 PPTX Slides", f"{API_URL}/reports/download/{s['id']}/pptx", use_container_width=True)
                         with c3:
-                            st.link_button("Markdown", f"{API_URL}/reports/download/{s['id']}/md", use_container_width=True)
+                            st.link_button("📝 Markdown", f"{API_URL}/reports/download/{s['id']}/md", use_container_width=True)
                         with c4:
-                            if st.button("?? View Dialogs", key=f"v_{s['id']}", use_container_width=True):
+                            if st.button("💬 View Dialogs", key=f"v_{s['id']}", use_container_width=True):
                                 st.session_state["active_session_id"] = s["id"]
                                 st.session_state["page"] = "dashboard"
                                 st.rerun()
@@ -230,23 +230,23 @@ def render_dashboard():
             st.error(f"Connection error: {e}")
 
     # ================= 3. PENDING APPROVALS =================
-    elif menu_selection == "?? Pending Approvals":
+    elif menu_selection == "⏳ Pending Approvals":
         st.markdown("### Human Approval Workflows")
         st.write("Manager and Admin roles can audit and release budget contracts or sensitive transaction operations requested by board agents.")
         
         if role not in ["admin", "manager"]:
-            st.warning("?? Insufficient Permissions. Your role must be MANAGER or ADMIN to resolve action approvals.")
+            st.warning("⚠️ Insufficient Permissions. Your role must be MANAGER or ADMIN to resolve action approvals.")
         else:
             try:
                 res = requests.get(f"{API_URL}/board/approvals")
                 if res.status_code == 200:
                     approvals = res.json()
                     if not approvals:
-                        st.success("?? All actions approved! No pending requests.")
+                        st.success("✅ All actions approved! No pending requests.")
                     for app in approvals:
                         st.markdown(f"""
                         <div class="board-card">
-                            <h4>?? sensitive action: {app['tool_name']}</h4>
+                            <h4>⚠️ Sensitive Action: {app['tool_name']}</h4>
                             <p><b>Session ID:</b> {app['session_id']}</p>
                             <p><b>Request ID:</b> {app['id']}</p>
                             <p><b>Arguments:</b> <code style='color:#38BDF8;'>{app['arguments']}</code></p>
@@ -256,7 +256,7 @@ def render_dashboard():
                         
                         c_app, c_rej = st.columns(2)
                         with c_app:
-                            if st.button("? Approve Action", key=f"app_{app['id']}", use_container_width=True):
+                            if st.button("✅ Approve Action", key=f"app_{app['id']}", use_container_width=True):
                                 resolve_res = requests.post(f"{API_URL}/board/approve/{app['id']}", json={
                                     "status": "approved",
                                     "resolver_username": username
@@ -265,7 +265,7 @@ def render_dashboard():
                                     st.success("Action Approved successfully!")
                                     st.rerun()
                         with c_rej:
-                            if st.button("? Reject Action", key=f"rej_{app['id']}", use_container_width=True):
+                            if st.button("❌ Reject Action", key=f"rej_{app['id']}", use_container_width=True):
                                 resolve_res = requests.post(f"{API_URL}/board/approve/{app['id']}", json={
                                     "status": "rejected",
                                     "resolver_username": username
@@ -279,12 +279,12 @@ def render_dashboard():
                 st.error(f"Error: {e}")
 
     # ================= 4. MEMORY BANK =================
-    elif menu_selection == "?? Memory Bank":
+    elif menu_selection == "🧠 Memory Bank":
         st.markdown("### Business & Decision Memory")
         st.write("Browse structured facts, user preferences, and strategic decision outcomes remembered across board sessions.")
         
         # Add preference form
-        with st.expander("?? Add Strategic Constraint / User Preference", expanded=False):
+        with st.expander("➕ Add Strategic Constraint / User Preference", expanded=False):
             pref_key = st.text_input("Preference Name", placeholder="e.g. Budget Cap")
             pref_val = st.text_area("Details / Constraint Guidelines", placeholder="e.g. Target budget under $200k, maximum opex $50k.")
             if st.button("Save Preference"):
@@ -305,7 +305,7 @@ def render_dashboard():
                 else:
                     st.warning("Please fill in both fields.")
         
-        search_q = st.text_input("?? Search Memory Bank", placeholder="e.g., retail expansion GDPR")
+        search_q = st.text_input("🔍 Search Memory Bank", placeholder="e.g., retail expansion GDPR")
         if search_q:
             try:
                 res = requests.get(f"{API_URL}/memory/search", params={"query": search_q})
@@ -318,7 +318,7 @@ def render_dashboard():
                             st.markdown(f"""
                             <div class="board-card" style="border-left: 4px solid #0284C7; margin-bottom: 0;">
                                 <div style="display:flex; justify-content:space-between;">
-                                    <b>?? {it['key']}</b>
+                                    <b>🧠 {it['key']}</b>
                                     <span style="font-size:0.8rem; color:#64748B;">Score: {it['score']:.2f}</span>
                                 </div>
                                 <p style="margin-top:6px; color:#E2E8F0;">{it['value']}</p>
@@ -352,7 +352,7 @@ def render_dashboard():
                         with col_text:
                             st.markdown(f"""
                             <div class="board-card" style="border-left: 4px solid #0284C7; margin-bottom: 0;">
-                                <b>?? {it['key']}</b>
+                                <b>🧠 {it['key']}</b>
                                 <p style="margin-top:6px; color:#E2E8F0;">{it['value']}</p>
                                 <p style="font-size:0.75rem; color:#64748B; margin-top:2px;">Category: {it['category'].upper()} | Saved: {it['created_at'][:19]}</p>
                             </div>
@@ -372,12 +372,12 @@ def render_dashboard():
                 st.error(f"Connection error: {e}")
 
     # ================= 5. PLATFORM AUDIT LOGS =================
-    elif menu_selection == "?? Platform Audit Logs":
+    elif menu_selection == "🔍 Platform Audit Logs":
         st.markdown("### Security Compliance Audit Logs")
         st.write("Full accountability record of user sign-ins, prompt injection triggers, database initializations, and approvals.")
         
         if role != "admin":
-            st.warning("?? Access Blocked. Platform audit logs are reserved for the Admin role only.")
+            st.warning("🚫 Access Blocked. Platform audit logs are reserved for the Admin role only.")
         else:
             try:
                 db_path = "boardroom.db"

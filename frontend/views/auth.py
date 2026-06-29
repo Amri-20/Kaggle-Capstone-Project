@@ -8,7 +8,7 @@ def render_auth():
     st.markdown("<h2 style='text-align: center;'>Platform Authentication</h2>", unsafe_allow_html=True)
     st.write(" ")
     
-    tab1, tab2 = st.tabs(["?? Log In", "?? Register"])
+    tab1, tab2 = st.tabs(["🔑 Log In", "📝 Register"])
     
     with tab1:
         st.markdown("### Sign In to BoardRoom AI")
@@ -60,7 +60,7 @@ def render_auth():
                 except Exception as e:
                     st.error(f"Cannot connect to backend: {str(e)}")
                     
-    if st.button("?? Back to Landing Page"):
+    if st.button("⬅️ Back to Landing Page"):
         st.session_state["page"] = "landing"
         st.rerun()
 
